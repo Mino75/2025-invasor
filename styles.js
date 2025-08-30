@@ -2,29 +2,6 @@
 
 (function injectStyles() {
   const css = `
-      html {
-        /* Force le navigateur à ne pas zoomer automatiquement */
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        text-size-adjust: 100%;
-      }
-      
-      body {
-        /* Empêche le débordement horizontal */
-        overflow-x: hidden;
-        /* Assure que le body prend bien toute la largeur sans forcer le zoom */
-        min-width: 100vw;
-      }
-      
-      #frame {
-        /* S'assure que le frame ne dépasse jamais la largeur de l'écran */
-        max-width: 100vw;
-        /* Centre horizontalement sans débordement */
-        margin: 0 auto;
-        box-sizing: border-box;
-      }
-
-  
     :root {
       --base-stage-width: 720;
       --base-stage-height: 900;
@@ -48,16 +25,38 @@
 
     * { box-sizing: border-box; }
     html, body {
-      height: 100%; margin: 0; background: #050a16; color: var(--ui-text);
+      height: 100%; 
+      margin: 0; 
+      padding: 0;
+      background: #050a16; 
+      color: var(--ui-text);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
       touch-action: manipulation;
+      
+      /* SOLUTION: Empêche complètement le zoom automatique du navigateur */
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      
+      /* Force le navigateur à respecter notre mise à l'échelle */
+      -webkit-text-size-adjust: none;
+      -moz-text-size-adjust: none;
+      -ms-text-size-adjust: none;
+      text-size-adjust: none;
     }
-
     #frame {
-      position: relative; margin: 0 auto;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      
+      /* Dimensions calculées par le JavaScript */
       width: calc(var(--base-stage-width) * var(--scale) * 1px);
       height: calc((var(--base-hud-height) + var(--base-stage-height)) * var(--scale) * 1px);
-      display: grid; grid-template-rows: var(--hud-height) var(--stage-height); place-items: start center;
+      
+      display: grid; 
+      grid-template-rows: var(--hud-height) var(--stage-height); 
+      place-items: start center;
     }
 
     #hud, #game-stage { transform-origin: top center; transform: scale(var(--scale)); }
@@ -146,4 +145,5 @@
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
 
