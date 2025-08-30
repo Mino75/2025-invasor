@@ -24,7 +24,7 @@
     }
 
     * { box-sizing: border-box; }
-    html, body {
+      html, body {
       height: 100%; 
       margin: 0; 
       padding: 0;
@@ -44,6 +44,7 @@
       -ms-text-size-adjust: none;
       text-size-adjust: none;
     }
+    
     #frame {
       position: absolute;
       top: 50%;
@@ -145,5 +146,6 @@
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
 
 
