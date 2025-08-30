@@ -2,6 +2,29 @@
 
 (function injectStyles() {
   const css = `
+      html {
+        /* Force le navigateur à ne pas zoomer automatiquement */
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      
+      body {
+        /* Empêche le débordement horizontal */
+        overflow-x: hidden;
+        /* Assure que le body prend bien toute la largeur sans forcer le zoom */
+        min-width: 100vw;
+      }
+      
+      #frame {
+        /* S'assure que le frame ne dépasse jamais la largeur de l'écran */
+        max-width: 100vw;
+        /* Centre horizontalement sans débordement */
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+  
     :root {
       --base-stage-width: 720;
       --base-stage-height: 900;
@@ -123,3 +146,4 @@
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
