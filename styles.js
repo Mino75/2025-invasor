@@ -1,10 +1,10 @@
-// styles.js — responsive scale + touch UI + colored barrier highlights + endgame popup
+// styles.js — responsive scale + touch UI + correction mobile
 
 (function injectStyles() {
   const css = `
     :root {
       --base-stage-width: 720;
-      --base-stage-height: 900;
+      --base-stage-height: 700;
       --base-hud-height: 56;
       --scale: 1;
 
@@ -24,8 +24,9 @@
     }
 
     * { box-sizing: border-box; }
-      html, body {
-      height: 100%; 
+    
+    html, body {
+      height: 100vh; 
       margin: 0; 
       padding: 0;
       background: #050a16; 
@@ -33,10 +34,8 @@
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
       touch-action: manipulation;
       
-      /* SOLUTION: Empêche complètement le zoom automatique du navigateur */
+      /* CORRECTION: Retirer position fixed qui cause des problèmes */
       overflow: hidden;
-      position: fixed;
-      width: 100%;
       
       /* Force le navigateur à respecter notre mise à l'échelle */
       -webkit-text-size-adjust: none;
@@ -45,11 +44,18 @@
       text-size-adjust: none;
     }
     
+    body {
+      /* CORRECTION: Utiliser flex au lieu de position fixed */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh; /* Dynamic viewport height pour mobile */
+    }
+    
     #frame {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      /* CORRECTION: Simplifier le positionnement */
+      position: relative;
       
       /* Dimensions calculées par le JavaScript */
       width: calc(var(--base-stage-width) * var(--scale) * 1px);
@@ -58,27 +64,41 @@
       display: grid; 
       grid-template-rows: var(--hud-height) var(--stage-height); 
       place-items: start center;
+      
+      /* CORRECTION: Ajout de marges pour éviter le débordement */
+      margin: 10px;
     }
 
-    #hud, #game-stage { transform-origin: top center; transform: scale(var(--scale)); }
-
+    /* CORRECTION: Supprimer les transforms scale sur hud et stage */
     #hud {
-      width: var(--stage-width); height: var(--hud-height);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 12px; font-size: var(--hud-font-size);
+      width: var(--stage-width); 
+      height: var(--hud-height);
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between;
+      padding: 8px 12px; 
+      font-size: var(--hud-font-size);
       background: rgba(10,15,30,0.6);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 12px 12px 0 0;
-      backdrop-filter: blur(4px); z-index: var(--z-hud);
+      border: 1px solid rgba(255,255,255,0.08); 
+      border-radius: 12px 12px 0 0;
+      backdrop-filter: blur(4px); 
+      z-index: var(--z-hud);
     }
+    
     #hud .dot { margin: 0 8px; color: var(--ui-dim); }
     #hud #score-label, #hud #lives-label, #high-label { color: var(--ui-dim); margin-right: 6px; }
     #score-value, #lives-value, #high-value { min-width: 48px; display: inline-block; text-align: right; letter-spacing: 1px; }
     #bonus-indicator { color: var(--bonus); font-weight: 700; }
 
     #game-stage {
-      width: var(--stage-width); height: var(--stage-height); position: relative; overflow: hidden;
-      background: var(--stage-bg); border: 1px solid rgba(255,255,255,0.08);
-      border-top: none; border-radius: 0 0 12px 12px;
+      width: var(--stage-width); 
+      height: var(--stage-height); 
+      position: relative; 
+      overflow: hidden;
+      background: var(--stage-bg); 
+      border: 1px solid rgba(255,255,255,0.08);
+      border-top: none; 
+      border-radius: 0 0 12px 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 120px rgba(90,130,255,0.08);
       font-size: 0;
     }
@@ -125,27 +145,54 @@
       background-size: 100% 3px; mix-blend-mode: soft-light; pointer-events: none;
     }
 
-    /* Touch controls: show on narrow screens */
+    /* Touch controls: CORRECTION - meilleur positionnement */
     #touch-controls {
-      position: fixed; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0);
-      display: flex; gap: 12px; justify-content: space-between;
+      position: fixed; 
+      left: 0; 
+      right: 0; 
+      bottom: env(safe-area-inset-bottom, 0);
+      display: none; /* Caché par défaut */
+      gap: 12px; 
+      justify-content: space-between;
       padding: 10px 14px;
       background: linear-gradient(180deg, rgba(3,6,16,0) 0%, rgba(3,6,16,0.7) 40%, rgba(3,6,16,0.85) 100%);
-      z-index: 9999; backdrop-filter: blur(6px);
+      z-index: 9999; 
+      backdrop-filter: blur(6px);
     }
+    
     #touch-controls button {
-      flex: 1; padding: 14px 10px; font-size: clamp(16px, 4.5vw, 22px);
-      color: white; background: rgba(120,150,255,0.25);
-      border: 1px solid rgba(180,200,255,0.25); border-radius: 14px;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      flex: 1; 
+      padding: 14px 10px; 
+      font-size: clamp(16px, 4.5vw, 22px);
+      color: white; 
+      background: rgba(120,150,255,0.25);
+      border: 1px solid rgba(180,200,255,0.25); 
+      border-radius: 14px;
+      touch-action: manipulation; 
+      -webkit-tap-highlight-color: transparent;
     }
-    @media (max-width: 860px) { #touch-controls { display: flex; } }
+    
+    /* CORRECTION: Media query plus précise */
+    @media (max-width: 860px) { 
+      #touch-controls { 
+        display: flex; 
+      }
+      
+      /* CORRECTION: Ajuster body pour les contrôles tactiles */
+      body {
+        padding-bottom: 80px; /* Espace pour les contrôles */
+      }
+    }
+    
+    /* CORRECTION: Gestion spéciale pour très petits écrans */
+    @media (max-width: 480px) {
+      #frame {
+        margin: 5px;
+      }
+    }
   `;
   const style = document.createElement('style');
   style.setAttribute('data-origin', 'emoji-invader-styles');
   style.textContent = css;
   document.head.appendChild(style);
 })();
-
-
-
