@@ -80,20 +80,56 @@ function updateHighScoreHUD() {
 }
 
 // ---------- Responsive scaler ----------
+
 function applyScale() {
   const padding = 12;
   const baseW = GAME_CONSTANTS.STAGE_WIDTH;
-  const baseH = GAME_CONSTANTS.STAGE_HEIGHT + 56;
+  const baseH = GAME_CONSTANTS.STAGE_HEIGHT + 56; // +56 pour le HUD
+  
+  // CORRECTION: Meilleur calcul du viewport mobile
   const vw = Math.max(320, window.innerWidth);
-  const touchH = window.matchMedia("(max-width: 860px)").matches ? 64 : 0;
-  const vh = Math.max(480, window.innerHeight - touchH);
-  const scale = Math.min((vw - padding * 2) / baseW, (vh - padding * 2) / baseH);
+  
+  // CORRECTION: Détecter les contrôles tactiles plus précisément
+  const isMobile = window.matchMedia("(max-width: 860px)").matches;
+  const touchControlsHeight = isMobile ? 80 : 0; // Augmenté de 64 à 80px
+  
+  // CORRECTION: Utiliser la vraie hauteur disponible
+  const availableHeight = window.innerHeight - touchControlsHeight;
+  const vh = Math.max(480, availableHeight);
+  
+  // CORRECTION: Calcul de scale plus conservateur sur mobile
+  const scaleX = (vw - padding * 2) / baseW;
+  const scaleY = (vh - padding * 2) / baseH;
+  
+  // CORRECTION: Sur mobile, privilégier la largeur pour éviter les débordements
+  let scale;
+  if (isMobile) {
+    scale = Math.min(scaleX, scaleY, 0.9); // Limite max à 0.9 sur mobile
+  } else {
+    scale = Math.min(scaleX, scaleY);
+  }
+  
+  // CORRECTION: Assurer un minimum plus élevé sur mobile
+  scale = Math.max(scale, isMobile ? 0.4 : 0.3);
+  
+  console.log(`Scaling - vw: ${vw}, vh: ${vh}, touchH: ${touchControlsHeight}, scale: ${scale.toFixed(3)}`);
+  
   document.documentElement.style.setProperty("--scale", String(scale));
-  frame.style.width = `${baseW * scale}px`;
-  frame.style.height = `${baseH * scale}px`;
+  
+  // CORRECTION: Définir les tailles réelles calculées
+  const finalW = baseW * scale;
+  const finalH = baseH * scale;
+  
+  frame.style.width = `${finalW}px`;
+  frame.style.height = `${finalH}px`;
+  
+  // CORRECTION: Sur très petits écrans, ajuster les marges
+  if (vw < 480) {
+    frame.style.margin = '5px';
+  } else {
+    frame.style.margin = '10px';
+  }
 }
-window.addEventListener("resize", applyScale);
-window.addEventListener("orientationchange", applyScale);
 
 // -------------------------------
 // Utilities
@@ -533,3 +569,4 @@ function endGame(victory){
   // Auto-start shortly after load
   setTimeout(()=>{ resetGame(); }, 900);
 })();
+
