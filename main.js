@@ -235,6 +235,83 @@ btnReplay?.addEventListener("click", () => {
   resetGame();
 });
 
+// Add this to main.js after your existing code
+
+// Joystick implementation
+const joystickCanvas = document.getElementById("joystick-canvas");
+const joystickCtx = joystickCanvas?.getContext("2d");
+
+if (joystickCanvas && joystickCtx) {
+  // Set canvas size
+  const size = 120;
+  joystickCanvas.width = size;
+  joystickCanvas.height = size;
+  
+  let joystickActive = false;
+  let joystickKnobX = size / 2;
+  let joystickKnobY = size / 2;
+  
+  function drawJoystick() {
+    joystickCtx.clearRect(0, 0, size, size);
+    
+    // Draw base circle
+    joystickCtx.beginPath();
+    joystickCtx.arc(size/2, size/2, size/2 - 10, 0, Math.PI * 2);
+    joystickCtx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    joystickCtx.fill();
+    joystickCtx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+    joystickCtx.lineWidth = 2;
+    joystickCtx.stroke();
+    
+    // Draw knob
+    joystickCtx.beginPath();
+    joystickCtx.arc(joystickKnobX, joystickKnobY, 15, 0, Math.PI * 2);
+    joystickCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    joystickCtx.fill();
+  }
+  
+  function handleJoystickInput(x, y) {
+    const centerX = size / 2;
+    const deltaX = x - centerX;
+    const deadzone = 20;
+    
+    // Update input based on joystick position
+    input.left = deltaX < -deadzone;
+    input.right = deltaX > deadzone;
+  }
+  
+  // Touch/mouse event handlers
+  joystickCanvas.addEventListener("pointerdown", (e) => {
+    joystickActive = true;
+    const rect = joystickCanvas.getBoundingClientRect();
+    joystickKnobX = e.clientX - rect.left;
+    joystickKnobY = e.clientY - rect.top;
+    handleJoystickInput(joystickKnobX, joystickKnobY);
+    drawJoystick();
+  });
+  
+  joystickCanvas.addEventListener("pointermove", (e) => {
+    if (!joystickActive) return;
+    const rect = joystickCanvas.getBoundingClientRect();
+    joystickKnobX = e.clientX - rect.left;
+    joystickKnobY = e.clientY - rect.top;
+    handleJoystickInput(joystickKnobX, joystickKnobY);
+    drawJoystick();
+  });
+  
+  joystickCanvas.addEventListener("pointerup", () => {
+    joystickActive = false;
+    joystickKnobX = size / 2;
+    joystickKnobY = size / 2;
+    input.left = false;
+    input.right = false;
+    drawJoystick();
+  });
+  
+  // Initial draw
+  drawJoystick();
+}
+
 // -------------------------------
 // Init / Reset
 // -------------------------------
@@ -624,3 +701,4 @@ function endGame(victory){
 
   setTimeout(()=>{ resetGame(); }, 900);
 })();
+
