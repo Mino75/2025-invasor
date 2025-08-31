@@ -318,7 +318,9 @@ if (joystickCanvas && joystickCtx) {
 function positionSprite(el,x,y){ el.style.left=`${Math.round(x)}px`; el.style.top=`${Math.round(y)}px`; }
 
 function resetGame(){
-  stage.innerHTML="";
+  // ✅ Remove only game sprites, keep the joystick canvas
+const sprites = stage.querySelectorAll('.sprite, .fx-float');
+sprites.forEach(sprite => sprite.remove());
 
   state.running = true; state.gameOver = false; state.score = 0;
   state.lives = GAME_CONSTANTS.PLAYER_INITIAL_LIVES;
@@ -701,4 +703,5 @@ function endGame(victory){
 
   setTimeout(()=>{ resetGame(); }, 900);
 })();
+
 
