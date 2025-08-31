@@ -1,5 +1,8 @@
-// main.js — endgame popup with Replay, persistent High Score, auto-start preserved.
+// main.js — game logic with Time & Time-Bonus integrated (safe if HUD fields missing)
 
+// -------------------------------
+// Constants
+// -------------------------------
 const GAME_CONSTANTS = Object.freeze({
   STAGE_WIDTH: 720,
   STAGE_HEIGHT: 700,
@@ -7,7 +10,7 @@ const GAME_CONSTANTS = Object.freeze({
   PLAYER_EMOJI: "🛌",
   PLAYER_MOVE_SPEED_PX_PER_SEC: 360,
   PLAYER_INITIAL_LIVES: 3,
-  PLAYER_SHOT_COOLDOWN_MS: 180,            // auto-fire baseline
+  PLAYER_SHOT_COOLDOWN_MS: 180,            // baseline auto-fire
   PLAYER_BONUS_FIRE_COOLDOWN_MS: 70,
   BONUS_DURATION_MS: 4000,
 
@@ -43,10 +46,18 @@ const GAME_CONSTANTS = Object.freeze({
   BARRIER_HP: 6,
   BARRIER_EMOJIS: ["🏢","🏨","🏩","🏪","🏫","🏬","🏭","🏯","🏰","💒","🗼"],
 
-  SCORE_BASIC: 10,
-  SCORE_SPECIAL: 50,
+  SCORE_BASIC: 15,
+  SCORE_SPECIAL: 60,
 });
 
+// Time & Time-Bonus settings
+const TIME_BONUS_MAX = 1000;          // starting bonus
+const TIME_BONUS_GRACE_MS = 20_000;   // first 10s stay full
+const TIME_BONUS_DECAY_PER_SEC = 50;  // then -50 / second
+
+// -------------------------------
+// DOM refs
+// -------------------------------
 const stage = document.getElementById("game-stage");
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlay-title");
@@ -58,12 +69,18 @@ const scoreValueEl = document.getElementById("score-value");
 const livesValueEl = document.getElementById("lives-value");
 const highValueEl = document.getElementById("high-value");
 
+// New (optional) HUD fields — safe if not present
+const timeValueEl = document.getElementById("time-value");
+const timeBonusValueEl = document.getElementById("timebonus-value");
+
 const frame = document.getElementById("frame");
 const touchControls = document.getElementById("touch-controls");
 const btnLeft = document.getElementById("btn-left");
 const btnRight = document.getElementById("btn-right");
 
-// Persistent high score
+// -------------------------------
+// High Score
+// -------------------------------
 const HS_KEY = "emojiInvaderHighScore";
 let highScore = Number.parseInt(localStorage.getItem(HS_KEY) || "0", 10) || 0;
 updateHighScoreHUD();
@@ -76,60 +93,47 @@ function saveHighScoreIfNeeded() {
   }
 }
 function updateHighScoreHUD() {
-  highValueEl.textContent = String(highScore).padStart(4, "0");
+  if (highValueEl) highValueEl.textContent = String(highScore).padStart(4, "0");
 }
 
-// ---------- Responsive scaler ----------
-
+// -------------------------------
+// Scaling (kept compatible with your current CSS)
+// -------------------------------
 function applyScale() {
   const padding = 12;
   const baseW = GAME_CONSTANTS.STAGE_WIDTH;
-  const baseH = GAME_CONSTANTS.STAGE_HEIGHT + 56; // +56 pour le HUD
-  
-  // CORRECTION: Meilleur calcul du viewport mobile
+  const baseH = GAME_CONSTANTS.STAGE_HEIGHT + 56; // + HUD
+
   const vw = Math.max(320, window.innerWidth);
-  
-  // CORRECTION: Détecter les contrôles tactiles plus précisément
   const isMobile = window.matchMedia("(max-width: 860px)").matches;
-  const touchControlsHeight = isMobile ? 80 : 0; // Augmenté de 64 à 80px
-  
-  // CORRECTION: Utiliser la vraie hauteur disponible
+  const touchControlsHeight = isMobile ? 80 : 0;
+
   const availableHeight = window.innerHeight - touchControlsHeight;
   const vh = Math.max(480, availableHeight);
-  
-  // CORRECTION: Calcul de scale plus conservateur sur mobile
+
   const scaleX = (vw - padding * 2) / baseW;
   const scaleY = (vh - padding * 2) / baseH;
-  
-  // CORRECTION: Sur mobile, privilégier la largeur pour éviter les débordements
+
   let scale;
   if (isMobile) {
-    scale = Math.min(scaleX, scaleY, 0.9); // Limite max à 0.9 sur mobile
+    scale = Math.min(scaleX, scaleY, 0.9);
   } else {
     scale = Math.min(scaleX, scaleY);
   }
-  
-  // CORRECTION: Assurer un minimum plus élevé sur mobile
+
   scale = Math.max(scale, isMobile ? 0.4 : 0.3);
-  
-  console.log(`Scaling - vw: ${vw}, vh: ${vh}, touchH: ${touchControlsHeight}, scale: ${scale.toFixed(3)}`);
-  
+
   document.documentElement.style.setProperty("--scale", String(scale));
-  
-  // CORRECTION: Définir les tailles réelles calculées
+
   const finalW = baseW * scale;
   const finalH = baseH * scale;
-  
+
   frame.style.width = `${finalW}px`;
   frame.style.height = `${finalH}px`;
-  
-  // CORRECTION: Sur très petits écrans, ajuster les marges
-  if (vw < 480) {
-    frame.style.margin = '5px';
-  } else {
-    frame.style.margin = '10px';
-  }
+
+  frame.style.margin = (vw < 480) ? '5px' : '10px';
 }
+window.addEventListener("resize", applyScale, { passive: true });
 
 // -------------------------------
 // Utilities
@@ -157,6 +161,20 @@ function rectsOverlap(a,b){
   return !(a.right<b.left || a.left>b.right || a.bottom<b.top || a.top>b.bottom);
 }
 
+// Time helpers
+function formatTime(ms) {
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function computeTimeBonus(msElapsed) {
+  if (msElapsed <= TIME_BONUS_GRACE_MS) return TIME_BONUS_MAX;
+  const over = (msElapsed - TIME_BONUS_GRACE_MS) / 1000; // seconds beyond grace
+  const decayed = TIME_BONUS_MAX - Math.floor(over * TIME_BONUS_DECAY_PER_SEC);
+  return Math.max(0, decayed);
+}
+
 // -------------------------------
 // State
 // -------------------------------
@@ -179,7 +197,43 @@ const state = {
   enemyMarchDirection: 1,
   enemyNextMoveAt: 0,
   lastFrameTime: 0,
+
+  // Time tracking
+  startTimeMs: 0,
 };
+
+// -------------------------------
+// Input: Keyboard + Touch (auto-fire always on)
+// -------------------------------
+const input = { left:false, right:false };
+
+window.addEventListener("keydown",(e)=>{
+  if (e.key==="ArrowLeft" || e.key.toLowerCase()==="a") input.left=true;
+  if (e.key==="ArrowRight"|| e.key.toLowerCase()==="d") input.right=true;
+});
+window.addEventListener("keyup",(e)=>{
+  if (e.key==="ArrowLeft" || e.key.toLowerCase()==="a") input.left=false;
+  if (e.key==="ArrowRight"|| e.key.toLowerCase()==="d") input.right=false;
+});
+
+// Touch buttons (if present)
+function bindHold(button, onDown, onUp){
+  const down = (ev)=>{ ev.preventDefault(); onDown(); };
+  const up = (ev)=>{ ev.preventDefault(); onUp(); };
+  ["pointerdown","touchstart","mousedown"].forEach(evt => button?.addEventListener(evt, down));
+  ["pointerup","pointercancel","touchend","touchcancel","mouseup","mouseleave"].forEach(evt => button?.addEventListener(evt, up));
+}
+if (btnLeft && btnRight) {
+  touchControls && (touchControls.hidden = false);
+  bindHold(btnLeft, ()=>input.left=true, ()=>input.left=false);
+  bindHold(btnRight, ()=>input.right=true, ()=>input.right=false);
+}
+
+// Replay
+btnReplay?.addEventListener("click", () => {
+  overlay.hidden = true;
+  resetGame();
+});
 
 // -------------------------------
 // Init / Reset
@@ -188,6 +242,7 @@ function positionSprite(el,x,y){ el.style.left=`${Math.round(x)}px`; el.style.to
 
 function resetGame(){
   stage.innerHTML="";
+
   state.running = true; state.gameOver = false; state.score = 0;
   state.lives = GAME_CONSTANTS.PLAYER_INITIAL_LIVES;
   state.projectiles = []; state.enemies = []; state.barriers = [];
@@ -198,8 +253,14 @@ function resetGame(){
   state.player.facing="right"; state.player.canShootAfter=0;
   state.player.hasBonus=false; state.player.bonusEndsAt=0;
 
-  updateScore(0); livesValueEl.textContent = String(state.lives);
-  bonusIndicator.hidden = true;
+  // Time start
+  state.startTimeMs = now();
+  if (timeValueEl) timeValueEl.textContent = "00:00";
+  if (timeBonusValueEl) timeBonusValueEl.textContent = String(TIME_BONUS_MAX);
+
+  updateScore(0);
+  if (livesValueEl) livesValueEl.textContent = String(state.lives);
+  if (bonusIndicator) bonusIndicator.hidden = true;
 
   state.player.el = createSprite(GAME_CONSTANTS.PLAYER_EMOJI, ["facing-right"]);
   positionSprite(state.player.el, state.player.x, state.player.y);
@@ -207,9 +268,9 @@ function resetGame(){
   spawnEnemyGrid();
   spawnBarriers();
 
-  overlay.setAttribute("data-state", "intro"); // hide quickly
-  overlaySubtitle.textContent = "Loading…";
-  btnReplay.hidden = true;
+  overlay.setAttribute("data-state", "intro"); // fades quickly by CSS
+  if (overlaySubtitle) overlaySubtitle.textContent = "Loading…";
+  if (btnReplay) btnReplay.hidden = true;
   overlay.hidden = false;
 
   state.lastFrameTime = now();
@@ -227,7 +288,7 @@ function spawnEnemyGrid(){
 
   for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
-      const specialRow = r <= 1; // top 2 rows: mostly specials
+      const specialRow = r <= 1;
       const isSpecial = specialRow && Math.random() < 0.55;
       const type = isSpecial ? (Math.random()<0.5 ? "ghost" : "squid") : "basic";
       const emoji = (type==="basic") ? C.ENEMY_BASIC_EMOJI : (type==="ghost" ? "👻" : "🐙");
@@ -285,42 +346,16 @@ function applyBarrierHighlight(barrier){
 }
 
 // -------------------------------
-// Input: Keyboard + Touch (auto-fire is always on)
-const input = { left:false, right:false };
-window.addEventListener("keydown",(e)=>{
-  if (e.key==="ArrowLeft" || e.key.toLowerCase()==="a") input.left=true;
-  if (e.key==="ArrowRight"|| e.key.toLowerCase()==="d") input.right=true;
-});
-window.addEventListener("keyup",(e)=>{
-  if (e.key==="ArrowLeft" || e.key.toLowerCase()==="a") input.left=false;
-  if (e.key==="ArrowRight"|| e.key.toLowerCase()==="d") input.right=false;
-});
-
-// Touch (press/hold)
-function bindHold(button, onDown, onUp){
-  const down = (ev)=>{ ev.preventDefault(); onDown(); };
-  const up = (ev)=>{ ev.preventDefault(); onUp(); };
-  ["pointerdown","touchstart","mousedown"].forEach(evt => button.addEventListener(evt, down));
-  ["pointerup","pointercancel","touchend","touchcancel","mouseup","mouseleave"].forEach(evt => button.addEventListener(evt, up));
-}
-if (btnLeft && btnRight) {
-  touchControls.hidden = false;
-  bindHold(btnLeft, ()=>input.left=true, ()=>input.left=false);
-  bindHold(btnRight, ()=>input.right=true, ()=>input.right=false);
-}
-
-// Replay button
-btnReplay?.addEventListener("click", () => {
-  overlay.hidden = true;
-  resetGame();
-});
-
-// -------------------------------
 // Game Loop
 // -------------------------------
 function gameLoop(t){
   if (!state.running) return;
   const dtMs = t - state.lastFrameTime; state.lastFrameTime = t;
+
+  // Live time & time-bonus HUD
+  const elapsed = now() - state.startTimeMs;
+  if (timeValueEl) timeValueEl.textContent = formatTime(elapsed);
+  if (timeBonusValueEl) timeBonusValueEl.textContent = String(computeTimeBonus(elapsed));
 
   updateBonusStatus();
   updatePlayer(dtMs);
@@ -513,7 +548,7 @@ function damageBarrier(barrier, projectile){
 }
 
 function harmPlayer(){
-  state.lives -= 1; livesValueEl.textContent = String(state.lives);
+  state.lives -= 1; if (livesValueEl) livesValueEl.textContent = String(state.lives);
   state.player.el.style.filter = "hue-rotate(60deg) drop-shadow(0 0 8px rgba(255,0,0,0.6))";
   setTimeout(()=> state.player.el.style.filter = "", 120);
 }
@@ -521,17 +556,23 @@ function harmPlayer(){
 // -------------------------------
 // Score / Bonus / Endgame
 // -------------------------------
-function updateScore(delta){ state.score += delta; scoreValueEl.textContent = state.score.toString().padStart(4,"0"); }
+function updateScore(delta){ 
+  state.score += delta; 
+  if (scoreValueEl) scoreValueEl.textContent = state.score.toString().padStart(4,"0"); 
+}
 function addScore(points){ updateScore(points); }
 
 function activateBonus(){
   state.player.hasBonus = true;
   state.player.bonusEndsAt = now() + GAME_CONSTANTS.BONUS_DURATION_MS;
-  bonusIndicator.hidden = false;
+  if (bonusIndicator) bonusIndicator.hidden = false;
 }
 function updateBonusStatus(){
   if (!state.player.hasBonus) return;
-  if (now() >= state.player.bonusEndsAt){ state.player.hasBonus=false; bonusIndicator.hidden=true; }
+  if (now() >= state.player.bonusEndsAt){ 
+    state.player.hasBonus=false; 
+    if (bonusIndicator) bonusIndicator.hidden=true; 
+  }
 }
 
 function checkWinLose(){
@@ -542,31 +583,44 @@ function checkWinLose(){
 
 function endGame(victory){
   state.running=false; state.gameOver=true;
+
+  // Award remaining time bonus on end
+  const totalElapsed = now() - state.startTimeMs;
+  const timeBonusAward = computeTimeBonus(totalElapsed);
+  if (timeBonusAward > 0) {
+    updateScore(timeBonusAward);
+  }
+
   saveHighScoreIfNeeded();
 
   overlay.setAttribute("data-state", "end");
   overlay.hidden = false;
+
+  const timeStr = formatTime(totalElapsed);
+  const subtitleHTML = `
+    Time: <strong>${timeStr}</strong>
+    — Time Bonus: <strong>+${timeBonusAward}</strong><br>
+    Final Score: <strong>${state.score}</strong>
+    — High: <strong>${highScore}</strong>
+  `;
   overlayTitle.textContent = victory ? "You Win! 🎉" : "Game Over 💀";
-  overlaySubtitle.innerHTML = `Score: <strong>${state.score}</strong> — High: <strong>${highScore}</strong>`;
-  btnReplay.hidden = false;
+  if (overlaySubtitle) overlaySubtitle.innerHTML = subtitleHTML;
+  if (btnReplay) btnReplay.hidden = false;
 }
 
 // -------------------------------
-// Boot: show brief intro, auto-start
+// Boot
 // -------------------------------
 (function boot(){
   stage.style.width = `${GAME_CONSTANTS.STAGE_WIDTH}px`;
   stage.style.height = `${GAME_CONSTANTS.STAGE_HEIGHT}px`;
   applyScale();
 
-  // Intro overlay (auto-fades via CSS)
   overlay.hidden = false;
   overlay.setAttribute("data-state", "intro");
-  overlayTitle.textContent = "Emoji Space Invader";
-  overlaySubtitle.textContent = "Loading…";
-  btnReplay.hidden = true;
+  if (overlayTitle) overlayTitle.textContent = "Emoji Space Invader";
+  if (overlaySubtitle) overlaySubtitle.textContent = "Loading…";
+  if (btnReplay) btnReplay.hidden = true;
 
-  // Auto-start shortly after load
   setTimeout(()=>{ resetGame(); }, 900);
 })();
-
