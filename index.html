@@ -2,51 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=720, initial-scale=1, user-scalable=no" />
+  <!-- Mobile-friendly viewport (no fixed width) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Emoji Space Invader</title>
+
+  <!-- Your trackers kept intact -->
   <script defer src="https://kizuna.kahiether.com/main.js?website-url=https://yoursite.com&personalinfostored=no&enablemdquizz=yes&enablejssandbox=yes&enableprivacy=yes"></script>
   <script defer src="https://analytics.kahiether.com/script.js" data-website-id="9461c52a-4a03-41a5-b2cf-4f1bc066166c"></script>
-   <link rel="manifest" href="manifest.json" />
 
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
   <div id="frame">
-    <div id="hud">
-      <div id="hud-left">
-        <span id="score-label">Score:</span> <span id="score-value">0000</span>
-        <span class="dot">•</span>
-        <span id="lives-label">Lives:</span> <span id="lives-value">3</span>
+    <!-- Single scaling wrapper fixes the offset -->
+    <div id="scaler">
+      <div id="hud">
+        <div id="hud-left">
+          <span id="score-label">Score:</span> <span id="score-value">0000</span>
+          <span class="dot">•</span>
+          <span id="lives-label">Lives:</span> <span id="lives-value">3</span>
+        </div>
+        <div id="hud-right">
+          <span id="high-label">High:</span> <span id="high-value">0000</span>
+          <span class="dot">•</span>
+          <span id="bonus-indicator" hidden>BONUS: Continuous Fire</span>
+          <span class="dot">•</span>
+          <span id="time-label">Time:</span> <span id="time-value">00:00</span>
+          <span class="dot">•</span>
+          <span id="timebonus-label">Time Bonus:</span> <span id="timebonus-value">1000</span>
+        </div>
+
       </div>
-      <div id="hud-right">
-        <span id="high-label">High:</span> <span id="high-value">0000</span>
-        <span class="dot">•</span>
-        <span id="bonus-indicator" hidden>BONUS: Continuous Fire</span>
+
+      <div id="game-stage" aria-label="game area">
+        <!-- Joystick overlay lives inside the game stage -->
+        <canvas id="joystick-canvas" aria-hidden="true"></canvas>
+      </div>
+
+      <!-- Intro / endgame overlay -->
+      <div id="overlay" data-state="intro">
+        <div id="overlay-content">
+          <h1 id="overlay-title">Invasor</h1>
+          <p id="overlay-subtitle">Loading…</p>
+          <p class="help">Game starts automatically</p>
+          <button id="btn-replay" hidden>↻ Replay</button>
+        </div>
       </div>
     </div>
-
-    <div id="game-stage" aria-label="game area"></div>
-
-    <!-- Reused for intro and endgame. data-state="intro" fades quickly. -->
-    <div id="overlay" data-state="intro">
-      <div id="overlay-content">
-        <h1 id="overlay-title">Invasor</h1>
-        <p id="overlay-subtitle">Loading…</p>
-        <p class="help">Game starts automatically</p>
-        <button id="btn-replay" hidden>↻ Replay</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mobile touch controls: left/right only (auto-fire) -->
-  <div id="touch-controls" hidden>
-    <button id="btn-left" aria-label="Move Left">◀︎</button>
-    <button id="btn-right" aria-label="Move Right">▶︎</button>
   </div>
 
   <script src="styles.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
-
-
-
