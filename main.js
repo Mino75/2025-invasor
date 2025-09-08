@@ -237,80 +237,142 @@ btnReplay?.addEventListener("click", () => {
 
 // Add this to main.js after your existing code
 
-// Joystick implementation
+// --- Joystick implementation (responsive + correct mapping) ---
 const joystickCanvas = document.getElementById("joystick-canvas");
 const joystickCtx = joystickCanvas?.getContext("2d");
 
 if (joystickCanvas && joystickCtx) {
-  // Set canvas size
-  const size = 120;
-  joystickCanvas.width = size;
-  joystickCanvas.height = size;
-  
-  let joystickActive = false;
-  let joystickKnobX = size / 2;
-  let joystickKnobY = size / 2;
-  
+  // values derived from actual CSS size
+  let size = 120;          // in CSS px
+  let radius = 0;          // base circle radius
+  let active = false;
+  let knobX = 0;
+  let knobY = 0;
+
+  // redraw considering DPR and CSS size (incl. transform: scale)
+  function resizeJoystickCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = joystickCanvas.getBoundingClientRect();
+
+    // visual size (CSS px)
+    size = Math.min(rect.width, rect.height);
+    radius = size / 2 - 10;
+
+    // internal bitmap size (device pixels)
+    joystickCanvas.width  = Math.round(rect.width * dpr);
+    joystickCanvas.height = Math.round(rect.height * dpr);
+
+    // make 1 drawing unit == 1 CSS px
+    joystickCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // default knob position: center
+    knobX = size / 2;
+    knobY = size / 2;
+
+    drawJoystick();
+  }
+
+  // draw (in CSS px coordinates)
   function drawJoystick() {
-    joystickCtx.clearRect(0, 0, size, size);
-    
-    // Draw base circle
+    const w = joystickCanvas.getBoundingClientRect().width;
+    const h = joystickCanvas.getBoundingClientRect().height;
+
+    joystickCtx.clearRect(0, 0, w, h);
+
+    const cx = size / 2;
+    const cy = size / 2;
+
+    // Base
     joystickCtx.beginPath();
-    joystickCtx.arc(size/2, size/2, size/2 - 10, 0, Math.PI * 2);
-    joystickCtx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    joystickCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+    joystickCtx.fillStyle = "rgba(255,255,255,0.1)";
     joystickCtx.fill();
-    joystickCtx.strokeStyle = "rgba(255, 255, 255, 0.3)";
     joystickCtx.lineWidth = 2;
+    joystickCtx.strokeStyle = "rgba(255,255,255,0.3)";
     joystickCtx.stroke();
-    
-    // Draw knob
+
+    // Knob
     joystickCtx.beginPath();
-    joystickCtx.arc(joystickKnobX, joystickKnobY, 15, 0, Math.PI * 2);
-    joystickCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    joystickCtx.arc(knobX, knobY, Math.max(14, size * 0.10), 0, Math.PI * 2);
+    joystickCtx.fillStyle = "rgba(255,255,255,0.85)";
     joystickCtx.fill();
   }
-  
-  function handleJoystickInput(x, y) {
-    const centerX = size / 2;
-    const deltaX = x - centerX;
-    const deadzone = 20;
-    
-    // Update input based on joystick position
-    input.left = deltaX < -deadzone;
-    input.right = deltaX > deadzone;
+
+  // set input state from horizontal displacement
+  function applyInputFromDelta(dx) {
+    const deadzone = Math.max(14, size * 0.09);
+    input.left  = dx < -deadzone;
+    input.right = dx >  deadzone;
   }
-  
-  // Touch/mouse event handlers
+
+  // position the knob, clamped to the base circle
+  function setKnobFromPointer(clientX, clientY) {
+    const rect = joystickCanvas.getBoundingClientRect();
+    const x = clientX - rect.left; // CSS px
+    const y = clientY - rect.top;
+
+    const cx = size / 2;
+    const cy = size / 2;
+    let dx = x - cx;
+    let dy = y - cy;
+
+    // clamp inside circle
+    const dist = Math.hypot(dx, dy);
+    const max = radius;
+    if (dist > max) {
+      const k = max / dist;
+      dx *= k; dy *= k;
+    }
+
+    knobX = cx + dx;
+    knobY = cy + dy;
+
+    applyInputFromDelta(dx);
+    drawJoystick();
+  }
+
+  // events (pointer capture + preventDefault for mobile)
   joystickCanvas.addEventListener("pointerdown", (e) => {
-    joystickActive = true;
-    const rect = joystickCanvas.getBoundingClientRect();
-    joystickKnobX = e.clientX - rect.left;
-    joystickKnobY = e.clientY - rect.top;
-    handleJoystickInput(joystickKnobX, joystickKnobY);
-    drawJoystick();
-  });
-  
+    active = true;
+    joystickCanvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    setKnobFromPointer(e.clientX, e.clientY);
+  }, { passive: false });
+
   joystickCanvas.addEventListener("pointermove", (e) => {
-    if (!joystickActive) return;
-    const rect = joystickCanvas.getBoundingClientRect();
-    joystickKnobX = e.clientX - rect.left;
-    joystickKnobY = e.clientY - rect.top;
-    handleJoystickInput(joystickKnobX, joystickKnobY);
+    if (!active) return;
+    e.preventDefault();
+    setKnobFromPointer(e.clientX, e.clientY);
+  }, { passive: false });
+
+  function endPointer(e) {
+    if (!active) return;
+    active = false;
+    // return to center + clear input
+    knobX = size / 2;
+    knobY = size / 2;
+    input.left = input.right = false;
     drawJoystick();
-  });
-  
-  joystickCanvas.addEventListener("pointerup", () => {
-    joystickActive = false;
-    joystickKnobX = size / 2;
-    joystickKnobY = size / 2;
-    input.left = false;
-    input.right = false;
-    drawJoystick();
-  });
-  
-  // Initial draw
-  drawJoystick();
+  }
+
+  joystickCanvas.addEventListener("pointerup", endPointer, { passive: false });
+  joystickCanvas.addEventListener("pointercancel", endPointer, { passive: false });
+  joystickCanvas.addEventListener("lostpointercapture", endPointer, { passive: false });
+
+  // adapt to resizes and layout scaling
+  window.addEventListener("resize", resizeJoystickCanvas, { passive: true });
+  // if your layout changes --scale dynamically, redraw after applyScale()
+  const _applyScale = applyScale;
+  window.applyScale = function() {
+    _applyScale();
+    // let layout settle before reading sizes
+    setTimeout(resizeJoystickCanvas, 0);
+  };
+
+  // init
+  resizeJoystickCanvas();
 }
+
 
 // -------------------------------
 // Init / Reset
@@ -703,5 +765,6 @@ function endGame(victory){
 
   setTimeout(()=>{ resetGame(); }, 900);
 })();
+
 
 
