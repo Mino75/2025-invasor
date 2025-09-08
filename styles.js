@@ -187,22 +187,45 @@
       background-size: 100% 3px; mix-blend-mode: soft-light; pointer-events: none;
     }
 
-    /* Joystick canvas (bottom-right overlay inside the stage) */
-    #joystick-canvas{
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
-      width: clamp(120px, 22vw, 180px);
-      height: clamp(120px, 22vw, 180px);
-      z-index: var(--z-hud);
-      pointer-events: auto;
-      background: transparent;
-      touch-action: none;
-      opacity: 0.9;
-    }
+/* Joystick canvas (centered bottom on mobile) */
+@media (max-width: 860px) {
+  #joystick-canvas{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+    bottom: 12px;
+    width: clamp(140px, 35vw, 220px);
+    height: clamp(140px, 35vw, 220px);
+    z-index: var(--z-hud);
+    pointer-events: auto;
+    background: transparent;
+    touch-action: none;
+    opacity: 0.95;
+  }
+}
+
+/* Keep bottom-right on desktop (optional) */
+@media (min-width: 861px) {
+  #joystick-canvas{
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: clamp(120px, 22vw, 180px);
+    height: clamp(120px, 22vw, 180px);
+    z-index: var(--z-hud);
+    pointer-events: auto;
+    background: transparent;
+    touch-action: none;
+    opacity: 0.9;
+  }
+}
+
+
   `;
   const style = document.createElement('style');
   style.setAttribute('data-origin', 'emoji-invader-styles');
   style.textContent = css;
   document.head.appendChild(style);
 })();
+
